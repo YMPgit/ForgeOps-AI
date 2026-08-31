@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Environment / secrets (never commit these)
+backend/.env
+frontend/.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# Database & runtime data
+backend/*.db
+backend/data/
+backend/uploads/
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
