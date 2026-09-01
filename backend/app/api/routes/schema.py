@@ -13,7 +13,7 @@ def _build_tables(db: Session) -> list:
     for table in table_names:
         columns_raw = get_table_schema(db, table)
         row_count = get_table_row_count(db, table)
-        columns = [ColumnInfo(name=col["name"], type=col["type"], nullable=not col.get("notnull", 1)) for col in columns_raw]
+        columns = [ColumnInfo(name=col["name"], type=col["type"], nullable=not col.get("notnull", False)) for col in columns_raw]
         tables.append(TableInfo(name=table, row_count=row_count, columns=columns))
     return tables
 
@@ -36,5 +36,5 @@ def get_table(table_name: str, db: Session = Depends(get_current_data_db)):
 
     columns_raw = get_table_schema(db, table_name)
     row_count = get_table_row_count(db, table_name)
-    columns = [ColumnInfo(name=col["name"], type=col["type"], nullable=not col.get("notnull", 1)) for col in columns_raw]
+    columns = [ColumnInfo(name=col["name"], type=col["type"], nullable=not col.get("notnull", False)) for col in columns_raw]
     return TableInfo(name=table_name, row_count=row_count, columns=columns)

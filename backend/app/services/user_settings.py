@@ -1,33 +1,34 @@
-import json
-from pathlib import Path
-
-BACKEND_DIR = Path(__file__).resolve().parent.parent.parent.parent
-DATA_DIR = BACKEND_DIR / "data"
-
-
-def _settings_file(user_id: int) -> Path:
-    return DATA_DIR / f"settings_{user_id}.json"
+from sqlalchemy import text
+from app.database.connection import SessionLocal
 
 
 def get_user_model(user_id: int):
-    path = _settings_file(user_id)
-    if path.exists():
-        try:
-            data = json.loads(path.read_text(encoding="utf-8"))
-            return data.get("model") or None
-        except Exception:
-            return None
-    return None
+    db = SessionLocal()
+    try:
+        result = db.execute(
+            text("SELECT model_preference FROM user_profiles WHERE user_id = :user_id"),
+            {"user_id": user_id},
+        )
+        row = result.fetchone()
+        return row[0] if row and row[0] else None
+    except Exception:
+        return None
+    finally:
+        db.close()
 
 
 def set_user_model(user_id: int, model: str):
-    path = _settings_file(user_id)
-    existing = {}
-    if path.exists():
-        try:
-            existing = json.loads(path.read_text(encoding="utf-8"))
-        except Exception:
-            existing = {}
-    existing["model"] = model
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(existing, indent=2), encoding="utf-8")
+    db = SessionLocal()
+    try:
+        db.execute(
+            text(
+                "INSERT INTO user_profiles (user_id, model_preference) VALUES (:user_id, :model) "
+                "ON CONFLICT (user_id) DO UPDATE SET model_preference = :model"
+            ),
+            {"user_id": user_id, "model": model},
+        )
+        db.commit()
+    except Exception:
+        db.rollback()
+    finally:
+        db.close()

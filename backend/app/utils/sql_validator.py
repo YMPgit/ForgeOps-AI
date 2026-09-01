@@ -4,12 +4,10 @@ from fastapi import HTTPException
 
 def sanitize_sql(sql: str) -> str:
     sql = sql.strip()
-    # Extract code fence content if present
     match = re.search(r"```(?:sql)?\s*([\s\S]*?)\s*```", sql, flags=re.IGNORECASE)
     if match:
         sql = match.group(1).strip()
     else:
-        # If there's explanatory text before SELECT, slice from SELECT
         select_match = re.search(r"\bSELECT\b[\s\S]*", sql, flags=re.IGNORECASE)
         if select_match:
             sql = select_match.group(0).strip()
@@ -35,7 +33,7 @@ def validate_sql(sql: str):
 
     destructive_keywords = [
         "INSERT", "UPDATE", "DELETE", "DROP", "ALTER", "CREATE",
-        "REPLACE", "ATTACH", "DETACH", "PRAGMA", "VACUUM"
+        "REPLACE", "TRUNCATE", "GRANT", "REVOKE"
     ]
 
     sql_upper = sql.upper()

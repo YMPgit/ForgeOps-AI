@@ -18,16 +18,16 @@ class SQLGeneratorService:
     async def generate_sql(self, question: str, schema_info: Dict[str, Any], temperature: float = None, max_tokens: int = None, model: str = None) -> str:
         schema_prompt = self._build_schema_prompt(schema_info)
 
-        system_prompt = f"""You are an expert SQL assistant for SQLite. Generate ONLY a single SELECT statement to answer the user's question.
+        system_prompt = f"""You are an expert SQL assistant for PostgreSQL. Generate ONLY a single SELECT statement to answer the user's question.
 
 {schema_prompt}
 
 Rules:
 - ONLY generate SELECT statements
-- Do NOT use INSERT, UPDATE, DELETE, DROP, ALTER, CREATE, REPPLACE, ATTACH, DETACH, PRAGMA, or VACUUM
+- Do NOT use INSERT, UPDATE, DELETE, DROP, ALTER, CREATE, REPLACE, or TRUNCATE
 - Do NOT use multiple statements
 - Do NOT include explanations, markdown code blocks, or any text outside the SQL
-- Use proper SQLite syntax
+- Use proper PostgreSQL syntax
 - Use table aliases if helpful for readability
 - Return ONLY the raw SQL statement
 """
