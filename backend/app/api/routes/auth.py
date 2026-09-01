@@ -29,7 +29,7 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
     db.execute(
         text(
             "INSERT INTO users (email, name, hashed_password, is_active, created_at, updated_at) "
-            "VALUES (:email, :name, :hashed, 1, datetime('now'), datetime('now'))"
+            "VALUES (:email, :name, :hashed, TRUE, NOW(), NOW())"
         ),
         {
             "email": user.email,

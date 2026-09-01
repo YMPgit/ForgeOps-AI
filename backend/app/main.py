@@ -3,8 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes import auth, query, schema, history, datasource, settings_route
 from app.models.models import create_user_table
-from app.database.connection import engine, ensure_demo_seed
-from app.services.legacy_migration import run_legacy_migration
+from app.database.connection import engine
 from sqlalchemy import inspect
 
 app = FastAPI(
@@ -38,11 +37,10 @@ app.include_router(settings_route.router, prefix="/api", tags=["settings"])
 
 @app.on_event("startup")
 def on_startup():
-    inspector = inspect(engine)
-    if "users" not in inspector.get_table_names():
+    try:
         create_user_table()
-    ensure_demo_seed()
-    run_legacy_migration()
+    except Exception:
+        pass
 
 
 @app.get("/")

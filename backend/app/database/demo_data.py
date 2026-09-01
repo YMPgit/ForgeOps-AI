@@ -1,21 +1,21 @@
 from datetime import datetime, timedelta
 import random
-from sqlalchemy.orm import Session
-from app.database.connection import engine as _default_engine
 from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 
-def create_demo_database(engine=None):
-    engine = engine or _default_engine
-    with Session(engine) as db:
-        db.execute(text("DROP TABLE IF EXISTS orders"))
-        db.execute(text("DROP TABLE IF EXISTS products"))
-        db.execute(text("DROP TABLE IF EXISTS customers"))
+def create_demo_schema(user_id: int):
+    from app.database.connection import _user_engine
+    user_engine = _user_engine(user_id)
+    with Session(user_engine) as db:
+        db.execute(text("DROP TABLE IF EXISTS orders CASCADE"))
+        db.execute(text("DROP TABLE IF EXISTS products CASCADE"))
+        db.execute(text("DROP TABLE IF EXISTS customers CASCADE"))
         db.commit()
 
         db.execute(text("""
             CREATE TABLE customers (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id SERIAL PRIMARY KEY,
                 name TEXT NOT NULL,
                 email TEXT NOT NULL UNIQUE,
                 city TEXT NOT NULL,
@@ -23,26 +23,23 @@ def create_demo_database(engine=None):
                 created_at TEXT NOT NULL
             )
         """))
-
         db.execute(text("""
             CREATE TABLE products (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id SERIAL PRIMARY KEY,
                 product_name TEXT NOT NULL,
                 category TEXT NOT NULL,
-                price REAL NOT NULL
+                price DOUBLE PRECISION NOT NULL
             )
         """))
 
         db.execute(text("""
             CREATE TABLE orders (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                customer_id INTEGER NOT NULL,
-                product_id INTEGER NOT NULL,
+                id SERIAL PRIMARY KEY,
+                customer_id INTEGER NOT NULL REFERENCES customers(id),
+                product_id INTEGER NOT NULL REFERENCES products(id),
                 quantity INTEGER NOT NULL,
-                total_amount REAL NOT NULL,
-                order_date TEXT NOT NULL,
-                FOREIGN KEY (customer_id) REFERENCES customers(id),
-                FOREIGN KEY (product_id) REFERENCES products(id)
+                total_amount DOUBLE PRECISION NOT NULL,
+                order_date TEXT NOT NULL
             )
         """))
 
@@ -75,11 +72,14 @@ def create_demo_database(engine=None):
             ("Zack Carter", "zack@example.com", "Oslo", "Norway", "2023-09-15"),
         ]
 
-        for name, email, city, country, created_at in customers:
-            db.execute(
-                text("INSERT INTO customers (name, email, city, country, created_at) VALUES (:name, :email, :city, :country, :created_at)"),
-                {"name": name, "email": email, "city": city, "country": country, "created_at": created_at}
-            )
+        db.execute(
+            text("INSERT INTO customers (name, email, city, country, created_at) VALUES "
+                 + ", ".join(["(:n%d, :e%d, :ci%d, :co%d, :cr%d)" % (i, i, i, i, i) for i in range(len(customers))])),
+            {k: v for i, (name, email, city, country, created_at) in enumerate(customers)
+             for k, v in {
+                 f"n{i}": name, f"e{i}": email, f"ci{i}": city, f"co{i}": country, f"cr{i}": created_at
+             }.items()}
+        )
 
         products = [
             ("Wireless Headphones", "Electronics", 79.99),
@@ -108,42 +108,45 @@ def create_demo_database(engine=None):
             ("Programming Guide", "Books", 39.99),
         ]
 
-        for product_name, category, price in products:
-            db.execute(
-                text("INSERT INTO products (product_name, category, price) VALUES (:product_name, :category, :price)"),
-                {"product_name": product_name, "category": category, "price": price}
-            )
+        db.execute(
+            text("INSERT INTO products (product_name, category, price) VALUES "
+                 + ", ".join(["(:pn%d, :ca%d, :pr%d)" % (i, i, i) for i in range(len(products))])),
+            {k: v for i, (product_name, category, price) in enumerate(products)
+             for k, v in {f"pn{i}": product_name, f"ca{i}": category, f"pr{i}": price}.items()}
+        )
 
-        order_statuses = ["completed", "completed", "completed", "completed", "completed", "completed", "completed", "shipped", "pending"]
         start_date = datetime(2023, 1, 1)
         end_date = datetime(2024, 12, 31)
 
+        product_prices = {
+            pid: (db.execute(text("SELECT price FROM products WHERE id = :id"), {"id": pid}).scalar())
+            for pid in range(1, 25)
+        }
+        order_params = []
         for _ in range(150):
             customer_id = random.randint(1, 26)
             product_id = random.randint(1, 24)
             quantity = random.randint(1, 5)
-
-            product_price = db.execute(text("SELECT price FROM products WHERE id = :id"), {"id": product_id}).scalar()
-            total_amount = round(product_price * quantity, 2)
-
+            total_amount = round(product_prices[product_id] * quantity, 2)
             days_diff = (end_date - start_date).days
             random_days = random.randint(0, days_diff)
             order_date = (start_date + timedelta(days=random_days)).strftime("%Y-%m-%d")
+            order_params.append({
+                "customer_id": customer_id,
+                "product_id": product_id,
+                "quantity": quantity,
+                "total_amount": total_amount,
+                "order_date": order_date,
+            })
 
-            db.execute(
-                text("INSERT INTO orders (customer_id, product_id, quantity, total_amount, order_date) VALUES (:customer_id, :product_id, :quantity, :total_amount, :order_date)"),
-                {
-                    "customer_id": customer_id,
-                    "product_id": product_id,
-                    "quantity": quantity,
-                    "total_amount": total_amount,
-                    "order_date": order_date,
-                }
-            )
+        db.execute(
+            text("INSERT INTO orders (customer_id, product_id, quantity, total_amount, order_date) VALUES "
+                 + ", ".join(["(:cu%d, :pr%d, :q%d, :ta%d, :od%d)" % (i, i, i, i, i) for i in range(len(order_params))])),
+            {k: v for i, op in enumerate(order_params)
+             for k, v in {
+                 f"cu{i}": op["customer_id"], f"pr{i}": op["product_id"], f"q{i}": op["quantity"],
+                 f"ta{i}": op["total_amount"], f"od{i}": op["order_date"],
+             }.items()}
+        )
 
         db.commit()
-
-
-if __name__ == "__main__":
-    create_demo_database()
-    print("Demo database created successfully!")
